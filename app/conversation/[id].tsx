@@ -92,7 +92,7 @@ export default function ConversationScreen() {
   const originalMessage =
       notification?.content ||
       notification?.message ||
-      notification?.body ||
+      (notification as any)?.body ||
       "";
     
   const appKey = `${notification?.app_package || ""} ${notification?.app_name || ""} ${notification?.source || ""}`.toLowerCase();
@@ -350,7 +350,7 @@ export default function ConversationScreen() {
     
       if (aTime !== bTime) return aTime - bTime;
     
-      return (a.sortOffset || 0) - (b.sortOffset || 0);
+      return ((a as any).sortOffset || 0) - ((b as any).sortOffset || 0);
     });
     }, [threadMessages, replies, draft, customerName]);
   
@@ -569,7 +569,7 @@ export default function ConversationScreen() {
         if (!uri) return;
         
         const base64Audio = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: "base64",
         });
         
         const res = await fetch(`${BACKEND_URL}/api/voice/transcribe`, {
@@ -1090,7 +1090,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     backgroundColor: "#0b1120",
     borderWidth: 1,
-    backgroundColor: "#111827",
+    
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,

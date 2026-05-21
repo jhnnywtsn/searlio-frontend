@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+
 import {
   View,
   Text,
@@ -14,17 +15,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 
-
 const STORAGE_KEY = "searlio_settings";
 const TONE_STYLES = ["casual", "direct", "friendly", "professional"] as const;
 const REPLY_LENGTHS = ["short", "medium"] as const;
 const EMOJI_OPTIONS = ["none", "minimal", "natural"] as const;
 const CHANNEL_OPTIONS = ["sms", "textnow", "whatsapp"] as const;
+const BACKEND_URL =
+  process.env.EXPO_PUBLIC_BACKEND_URL ||
+  "http://localhost:8001";
 
 export default function SettingsScreen() {
 const [accountEmail, setAccountEmail] = useState("");
   const [settings, setSettings] = useState({
     accountMode: "leads",
+    leadsOnly: false,
     autoSend: false,
     highPriorityOnly: true,
     skipSignal: false,
@@ -214,7 +218,7 @@ const [accountEmail, setAccountEmail] = useState("");
 
           <Switch
             value={settings.autoSend}
-            onValueChange={(v) => update("autoSend", v)}
+            onValueChange={(v:boolean) => update("autoSend", v)}
           />
         </View>
 
@@ -228,7 +232,7 @@ const [accountEmail, setAccountEmail] = useState("");
 
           <Switch
             value={settings.highPriorityOnly}
-            onValueChange={(v) => update("highPriorityOnly", v)}
+            onValueChange={(v: boolean) => update("highPriorityOnly", v)}
           />
         </View>
       </View>
@@ -239,8 +243,8 @@ const [accountEmail, setAccountEmail] = useState("");
         <SettingToggle
           label="Agent Mode: Leads Only"
           value={settings.leadsOnly}
-          onValueChange={(v) =>
-            updateSetting("leadsOnly", v)
+          onValueChange={(v: boolean) =>
+            update("leadsOnly", v)
           }
         />
         <SettingToggle
@@ -517,14 +521,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginBottom: 16,
   },
-  card: {
-    backgroundColor: "#0F1720",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#1E293B",
-  },
+  
   sectionTitle: {
     color: "#F8FAFC",
     fontWeight: "900",
@@ -570,16 +567,7 @@ const styles = StyleSheet.create({
   optionTextActive: {
     color: "#fff",
   },
-  input: {
-    backgroundColor: "#0B1120",
-    borderRadius: 12,
-    padding: 10,
-    color: "#fff",
-    borderWidth: 1,
-    borderColor: "#263244",
-    marginTop: 6,
-    minHeight: 50,
-  },
+  
   card: {
     backgroundColor: "#111827",
     borderRadius: 16,
@@ -727,4 +715,20 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     marginTop: -8,
   },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginBottom: 12,
+},
+
+  homeButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#111827",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#1E293B",
+},
 });

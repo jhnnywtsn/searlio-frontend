@@ -25,6 +25,10 @@ interface Notification {
   category: string;
   created_at: string;
   status?: string;
+    route_data?: {
+    route?: string;
+    priority?: string;
+  };
 }
 
 interface Reply {
@@ -343,7 +347,7 @@ export default function VoiceScreen() {
       }
 
       const voiceRoute =
-        currentNotification?.route_data?.route || "manual_review";
+        (currentNotification as any)?.route_data?.route || "manual_review";
 
       console.log("VOICE CADR ROUTE:", voiceRoute);
 

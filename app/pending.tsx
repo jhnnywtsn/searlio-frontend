@@ -21,7 +21,7 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-
+import * as Clipboard from "expo-clipboard";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 if (
@@ -44,6 +44,12 @@ interface Notification {
   sent_at?: string;
   source?: string;
   status?: string;
+    _id?: string;
+  notification_id?: string;
+  route_data?: {
+    route?: string;
+    priority?: string;
+  };
 }
 
 export default function PendingScreen() {
@@ -1270,11 +1276,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#1F1F28",
     backgroundColor: "#0B0F14",
   },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+  
   headerActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   headerTitle: { fontSize: 24, color: "#fff", fontWeight: "900" },
   headerSub: { color: "#94A3B8", fontSize: 13, marginTop: 4 },
@@ -1638,35 +1640,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 1,
 },
-titleRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 10,
-},
 
-modePill: {
-  paddingHorizontal: 10,
-  paddingVertical: 4,
-  borderRadius: 999,
-},
-
-modePillLeads: {
-  backgroundColor: "rgba(239,68,68,0.15)",
-  borderWidth: 1,
-  borderColor: "#ef4444",
-},
-
-modePillInbox: {
-  backgroundColor: "rgba(34,197,94,0.15)",
-  borderWidth: 1,
-  borderColor: "#22c55e",
-},
-
-modePillText: {
-  color: "#fff",
-  fontSize: 10,
-  fontWeight: "900",
-  letterSpacing: 1,
-},
 });
 

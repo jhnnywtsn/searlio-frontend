@@ -1,0 +1,16 @@
+node_modules
+.expo
+.git
+dist
+web-build
+android/.gradle
+android/build
+android/app/build
+ios/build
+.cache
+metro-cache
+npm-debug.log
+yarn-error.log
+*.apk
+*.aab
+*.jks

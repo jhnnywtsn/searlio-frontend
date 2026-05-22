@@ -123,31 +123,11 @@ export default function ConversationScreen() {
    
 // (Stabilize cross-platform alerts and voice agent behavior)
 
-  const customerName =
-    notification?.sender || notification?.title || notification?.app_name || "Customer";
+  
 
-  const originalMessage =
-    notification?.content ||
-    notification?.message ||
-    (notification as any)?.body ||
-    "";
 
-  const appKey =
-    `${notification?.app_package || ""} ${notification?.app_name || ""} ${notification?.source || ""}`.toLowerCase();
 
-  const isWebsiteLead =
-    notification?.source === "website" ||
-    notification?.source === "paid.searlio.com" ||
-    notification?.source === "searlio.com" ||
-    notification?.app_package === "com.searlio.website.leads" ||
-    notification?.app_name === "Website Lead";
 
-  const rawContact =
-    notification?.contact_phone ||
-    notification?.contact_whatsapp ||
-    notification?.sender ||
-    notification?.title ||
-    "";
 
   useEffect(() => {
     loadConversation();
@@ -576,79 +556,30 @@ export default function ConversationScreen() {
       return;
     }
 
-    try {
-      const permission = await Audio.requestPermissionsAsync();
-
-      if (!permission.granted) {
-        showAlert
-        ("Permission Required", "Microphone permission is required.");
-        return;
-      }
-<<<<<<< HEAD
-    
-      try {
-        if (!recording) return;
-    
-        setRecordingActive(false);
-        await recording.stopAndUnloadAsync();
-    
-        const uri = recording.getURI();
-        console.log("VOICE RECORDING URI:", uri);
-    
-        setRecording(null);
-    
-        if (!uri) return;
-        
-        const base64Audio = await FileSystem.readAsStringAsync(uri, {
-          encoding: "base64",
-        });
-        
-        const res = await fetch(`${BACKEND_URL}/api/voice/transcribe`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            audio_base64: base64Audio,
-            audio_format: "m4a",
-          }),
-        });
-        
-        const data = await res.json();
-        
-        console.log("VOICE TRANSCRIBE:", data);
-        
-        const transcript =
-          data?.text ||
-          data?.transcript ||
-          "";
-        
-        if (!transcript) {
-          console.log("No transcript returned");
-          return;
-        }
-        
-        await runVoiceAgent(transcript);
-      } catch (err) {
-        console.log("Recording stop error:", err);
-=======
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const result = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-
-      setRecording(result.recording);
-      setRecordingActive(true);
-    } catch (err) {
-      console.log("Recording start error:", err);
-    }
-  };
-
+   
+     try {
+       const permission = await Audio.requestPermissionsAsync();
+   
+       if (!permission.granted) {
+         showAlert("Permission Required", "Microphone permission is required.");
+         return;
+       }
+   
+       await Audio.setAudioModeAsync({
+         allowsRecordingIOS: true,
+         playsInSilentModeIOS: true,
+       });
+   
+       const result = await Audio.Recording.createAsync(
+         Audio.RecordingOptionsPresets.HIGH_QUALITY
+       );
+   
+       setRecording(result.recording);
+       setRecordingActive(true);
+     } catch (err) {
+       console.log("Recording start error:", err);
+     }
+   };
    const stopRecording = async () => {
     if (Platform.OS === "web") {
       return;
@@ -694,7 +625,7 @@ export default function ConversationScreen() {
       if (!transcript) {
         console.log("No transcript returned");
         return;
->>>>>>> 00a280d (Stabilize cross-platform alerts and voice agent behavior)
+
       }
       
       await runVoiceAgent(transcript);
@@ -1179,11 +1110,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     backgroundColor: "#0b1120",
     borderWidth: 1,
-<<<<<<< HEAD
-    
-=======
 
->>>>>>> 00a280d (Stabilize cross-platform alerts and voice agent behavior)
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,

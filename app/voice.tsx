@@ -178,7 +178,7 @@ export default function VoiceScreen() {
       }
     } catch (err) {
       console.error("Fetch error:", err);
-      Alert.alert("Error", "Failed to load voice queue");
+      showAlert("Error", "Failed to load voice queue");
     }
   }, [startingNotificationId]);
 
@@ -210,7 +210,7 @@ export default function VoiceScreen() {
     
   const startRecording = async () => {
     if (!permissionGranted) {
-      Alert.alert("Permission Required", "Microphone permission is required.");
+      showAlert("Permission Required", "Microphone permission is required.");
       return;
     }
 
@@ -226,7 +226,7 @@ export default function VoiceScreen() {
       setVoiceState("listening");
     } catch (err) {
       console.error("Failed to start recording:", err);
-      Alert.alert("Error", "Failed to start recording");
+      showAlert("Error", "Failed to start recording");
     }
   };
 
@@ -446,7 +446,7 @@ export default function VoiceScreen() {
       setVoiceState("ready_to_send");
     } catch (err: any) {
       console.log("VOICE GENERATE ERROR:", err?.message || err);
-      Alert.alert(
+      showAlert(
         "Voice Generate Failed",
         String(err?.message || err)
       );

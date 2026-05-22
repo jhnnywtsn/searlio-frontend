@@ -21,6 +21,7 @@ import * as Clipboard from "expo-clipboard";
 import * as FileSystem from "expo-file-system";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics"; // New import
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -61,6 +62,14 @@ type ReplyItem = {
 };
 
 export default function ConversationScreen() {
+
+  const showAlert = (title: string, message: string) => {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [notification, setNotification] = useState<NotificationItem | null>(null);
@@ -77,11 +86,11 @@ export default function ConversationScreen() {
   const [recordingActive, setRecordingActive] = useState(false);
   const generatingRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
-    
-  
+
   const copyToClipboard = async (text: string) => {
     await Clipboard.setStringAsync(text || "");
   };
+
   
   const customerName =
       notification?.sender ||
@@ -112,27 +121,51 @@ export default function ConversationScreen() {
      "";
    
    
+// (Stabilize cross-platform alerts and voice agent behavior)
 
-   
-   
-   
-   useEffect(() => {
-     loadConversation();
-   }, [id]);
+  const customerName =
+    notification?.sender || notification?.title || notification?.app_name || "Customer";
+
+  const originalMessage =
+    notification?.content ||
+    notification?.message ||
+    (notification as any)?.body ||
+    "";
+
+  const appKey =
+    `${notification?.app_package || ""} ${notification?.app_name || ""} ${notification?.source || ""}`.toLowerCase();
+
+  const isWebsiteLead =
+    notification?.source === "website" ||
+    notification?.source === "paid.searlio.com" ||
+    notification?.source === "searlio.com" ||
+    notification?.app_package === "com.searlio.website.leads" ||
+    notification?.app_name === "Website Lead";
+
+  const rawContact =
+    notification?.contact_phone ||
+    notification?.contact_whatsapp ||
+    notification?.sender ||
+    notification?.title ||
+    "";
+
+  useEffect(() => {
+    loadConversation();
+  }, [id]);
 
   const routeBoxColor =
-      routeData?.priority === "high"
-        ? "#3b1117"
-        : routeData?.priority === "medium"
-        ? "#2f2411"
-        : "#111827";
-    
-    const routeAccentColor =
-      routeData?.priority === "high"
-        ? "#f87171"
-        : routeData?.priority === "medium"
-        ? "#fbbf24"
-        : "#93c5fd";  
+    routeData?.priority === "high"
+      ? "#3b1117"
+      : routeData?.priority === "medium"
+      ? "#2f2411"
+      : "#111827";
+
+  const routeAccentColor =
+    routeData?.priority === "high"
+      ? "#f87171"
+      : routeData?.priority === "medium"
+      ? "#fbbf24"
+      : "#93c5fd";
 
   async function loadConversation() {
     if (!BACKEND_URL || !id) return;
@@ -145,7 +178,7 @@ export default function ConversationScreen() {
       setNotification(notificationData);
       const allRes = await fetch(`${BACKEND_URL}/api/notifications`);
       const allNotifications = await allRes.json();
-      
+
       const routeRes = await fetch(
         `${BACKEND_URL}/api/notifications/${id}/route`
       );
@@ -155,14 +188,14 @@ export default function ConversationScreen() {
       setRouteData(routeJson);
 
       console.log("CADR ROUTE:", routeJson);
-      
+
       const groupKey =
         notificationData.sender ||
         notificationData.title ||
         notificationData.app_package ||
         notificationData.app_name ||
         notificationData.id;
-      
+
       const relatedMessages = Array.isArray(allNotifications)
         ? allNotifications
             .filter((n) => {
@@ -172,7 +205,7 @@ export default function ConversationScreen() {
                 n.app_package ||
                 n.app_name ||
                 n.id;
-      
+
               return key === groupKey;
             })
             .sort(
@@ -181,7 +214,7 @@ export default function ConversationScreen() {
                 new Date(b.created_at || 0).getTime()
             )
         : [notificationData];
-      
+
       setThreadMessages(relatedMessages.length ? relatedMessages : [notificationData]);
       const rRes = await fetch(`${BACKEND_URL}/api/replies`);
       const allReplies = await rRes.json();
@@ -214,30 +247,38 @@ export default function ConversationScreen() {
 
       const savedSettings = await AsyncStorage.getItem("searlio_settings");
       const toneSettings = savedSettings ? JSON.parse(savedSettings) : {};
-      const accountEmail = localStorage.getItem("account_email") || "";
+
+      const accountEmail =
+        (await AsyncStorage.getItem("account_email")) || "";
       
       const subRes = await fetch(
         `${BACKEND_URL}/api/subscription/status?email=${encodeURIComponent(accountEmail)}`
       );
       
       const subData = await subRes.json();
-      
+      console.log("ACCOUNT EMAIL:", accountEmail);
+      console.log("SUB STATUS:", subData);
       if (!subData?.allowed) {
-        alert("Searlio Pro required. Start your 7-day free trial from Settings.");
+        console.log("BLOCKING AI: subscription required");
+      
+        showAlert(
+          "Searlio Pro required",
+          "Start your 7-day free trial from Settings."
+        );
+      
         return;
       }
       const res = await fetch(`${BACKEND_URL}/api/llm/generate-reply/${id}`, {
         method: "POST",
         headers: {
-         "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        toneStyle: toneSettings.toneStyle || "casual",
-        replyLength: toneSettings.replyLength || "short",
-        emojiUse: toneSettings.emojiUse || "minimal",
-        personalSignature: toneSettings.personalSignature || "",
-    }),
-  
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          toneStyle: toneSettings.toneStyle || "casual",
+          replyLength: toneSettings.replyLength || "short",
+          emojiUse: toneSettings.emojiUse || "minimal",
+          personalSignature: toneSettings.personalSignature || "",
+        }),
       });
 
       const data = await res.json();
@@ -253,6 +294,10 @@ export default function ConversationScreen() {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setDraft(text);
         scrollRef.current?.scrollToEnd({ animated: true });
+
+        // Haptic feedback and alert
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("Reply Ready", "AI drafted your response.");
       }
     } catch (err) {
       console.log("Generate reply error:", err);
@@ -316,7 +361,7 @@ export default function ConversationScreen() {
       label: msg.sender || msg.title || customerName,
       created_at: msg.created_at,
     }));
-  
+
     const sent = replies.map((reply) => ({
       id: `reply-${reply.id}`,
       type: reply.status === "delivered" ? "sent" : "ai",
@@ -324,7 +369,7 @@ export default function ConversationScreen() {
       label: reply.status === "delivered" ? "Searlio Sent" : "Searlio AI",
       created_at: reply.created_at,
     }));
-  
+
     const latestIncomingTime =
       incoming.length > 0
         ? incoming[incoming.length - 1].created_at
@@ -343,7 +388,7 @@ export default function ConversationScreen() {
             },
           ]
         : [];
-  
+
     return [...incoming, ...sent, ...draftItem].sort((a, b) => {
       const aTime = new Date(a.created_at || 0).getTime();
       const bTime = new Date(b.created_at || 0).getTime();
@@ -415,10 +460,8 @@ export default function ConversationScreen() {
       await Clipboard.setStringAsync(textToSend);
       await openOriginalApp();
       return;
-    }    
-  
-    
-  
+    }
+
     try {
       setSending(true);
       console.log("SEND DEBUG:", {
@@ -432,6 +475,7 @@ export default function ConversationScreen() {
         contact_whatsapp: notification?.contact_whatsapp,
         extra_data: (notification as any)?.extra_data,
       });
+
       const res = await fetch("https://searlio.com/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -441,18 +485,18 @@ export default function ConversationScreen() {
           channel: "sms",
         }),
       });
-  
+
       const data = await res.json();
       console.log("UNIVERSAL SEND RESULT:", JSON.stringify(data, null, 2));
       console.log("SEND TO:", to);
-  
+
       if (!res.ok || data?.ok === false) {
         console.log("SEND FAILED / FALLBACK:", data);
         await Clipboard.setStringAsync(textToSend);
         await openOriginalApp();
         return;
       }
-  
+
       setReplies((prev) => [
         ...prev,
         {
@@ -465,12 +509,15 @@ export default function ConversationScreen() {
           sortOffset: 2,
         },
       ]);
-  
+
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setDraft("");
+
+      // Success haptic feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Reply Sent", "Your message has been sent successfully.");
     } catch (err) {
       console.error("UNIVERSAL SEND ERROR:", err);
-  
       await Clipboard.setStringAsync(textToSend);
       await openOriginalApp();
     } finally {
@@ -478,7 +525,7 @@ export default function ConversationScreen() {
     }
   }
 
-  async function runVoiceAgent(transcript: string) {
+  const runVoiceAgent = async (transcript: string) => {
       if (!BACKEND_URL || !id) return;
     
       try {
@@ -518,42 +565,26 @@ export default function ConversationScreen() {
       } finally {
         setVoiceThinking(false);
       }
-    }  
+    };
 
-  async function startRecording() {
-      if (Platform.OS === "web") {
-        runVoiceAgent("Use the customer message and draft a short helpful reply.");
-        return;
-      }
-    
-      try {
-        const permission = await Audio.requestPermissionsAsync();
-    
-        if (!permission.granted) {
-          console.log("Microphone permission denied");
-          return;
-        }
-    
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: true,
-          playsInSilentModeIOS: true,
-        });
-    
-        const result = await Audio.Recording.createAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
-        );
-    
-        setRecording(result.recording);
-        setRecordingActive(true);
-      } catch (err) {
-        console.log("Recording start error:", err);
-      }
+  const startRecording = async () => {
+    if (Platform.OS === "web") {
+      showAlert(
+        "Voice Agent",
+        "Voice recording is available on the phone app. Use the AI Reply button on web."
+      );
+      return;
     }
-    
-    async function stopRecording() {
-      if (Platform.OS === "web") {
+
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+
+      if (!permission.granted) {
+        showAlert
+        ("Permission Required", "Microphone permission is required.");
         return;
       }
+<<<<<<< HEAD
     
       try {
         if (!recording) return;
@@ -600,14 +631,82 @@ export default function ConversationScreen() {
         await runVoiceAgent(transcript);
       } catch (err) {
         console.log("Recording stop error:", err);
+=======
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const result = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      setRecording(result.recording);
+      setRecordingActive(true);
+    } catch (err) {
+      console.log("Recording start error:", err);
+    }
+  };
+
+   const stopRecording = async () => {
+    if (Platform.OS === "web") {
+      return;
+    }
+
+    try {
+      if (!recording) return;
+
+      setRecordingActive(false);
+      await recording.stopAndUnloadAsync();
+
+      const uri = recording.getURI();
+      console.log("VOICE RECORDING URI:", uri);
+
+      setRecording(null);
+
+      if (!uri) return;
+      
+      const base64Audio = await FileSystem.readAsStringAsync(uri, {
+        encoding: "base64",
+      });
+      
+      const res = await fetch(`${BACKEND_URL}/api/voice/transcribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          audio_base64: base64Audio,
+          audio_format: "m4a",
+        }),
+      });
+      
+      const data = await res.json();
+      
+      console.log("VOICE TRANSCRIBE:", data);
+      
+      const transcript =
+        data?.text ||
+        data?.transcript ||
+        "";
+      
+      if (!transcript) {
+        console.log("No transcript returned");
+        return;
+>>>>>>> 00a280d (Stabilize cross-platform alerts and voice agent behavior)
       }
-    }  
-              
+      
+      await runVoiceAgent(transcript);
+    } catch (err) {
+      console.log("Recording stop error:", err);
+    }
+  };
+
   const canDirectSend = !!(
     notification?.contact_phone ||
     notification?.contact_whatsapp
-  );       
-
+  );
 
   const appActionLabel = isWebsiteLead
     ? "Send Reply"
@@ -624,7 +723,7 @@ export default function ConversationScreen() {
       notification?.source ||
       ""
     ).toLowerCase();
-  
+
     if (raw.includes("telegram")) return "Telegram";
     if (raw.includes("whatsapp")) return "WhatsApp";
     if (raw.includes("signal") || raw.includes("thoughtcrime")) {
@@ -636,7 +735,7 @@ export default function ConversationScreen() {
     if (raw.includes("messaging")) return "Messages";
     if (raw.includes("facebook") || raw.includes("orca")) return "Messenger";
     if (raw.includes("website")) return "Website Lead";
-  
+
     return notification?.app_name || "Conversation";
   };
 
@@ -650,42 +749,42 @@ export default function ConversationScreen() {
       : "#4b5563";
 
   const handleRouteAction = async () => {
-      const replyText = draft.trim();
-    
-      if (!replyText) {
-        Alert.alert("No reply yet", "Generate or type a reply first.");
-        return;
-      }
-    
-      if (routeData?.route === "email_review") {
-        await copyToClipboard(replyText);
-        await Linking.openURL("mailto:");
-        return;
-      }
-    
-      if (routeData?.route === "text_sms" || routeData?.route === "website_lead_sms") {
-        const phone =
-          routeData?.phone ||
-          notification?.contact_phone ||
-          notification?.contact_whatsapp ||
-          notification?.sender ||
-          "";
-    
-        await copyToClipboard(replyText);
-    
-        if (phone) {
-          await Linking.openURL(`sms:${phone}?body=${encodeURIComponent(replyText)}`);
-          return;
-        }
-    
-        await openOriginalApp();
-        return;
-      }
-    
+    const replyText = draft.trim();
+
+    if (!replyText) {
+      Alert.alert("No reply yet", "Generate or type a reply first.");
+      return;
+    }
+
+    if (routeData?.route === "email_review") {
       await copyToClipboard(replyText);
+      await Linking.openURL("mailto:");
+      return;
+    }
+
+    if (routeData?.route === "text_sms" || routeData?.route === "website_lead_sms") {
+      const phone =
+        routeData?.phone ||
+        notification?.contact_phone ||
+        notification?.contact_whatsapp ||
+        notification?.sender ||
+        "";
+
+      await copyToClipboard(replyText);
+
+      if (phone) {
+        await Linking.openURL(`sms:${phone}?body=${encodeURIComponent(replyText)}`);
+        return;
+      }
+
       await openOriginalApp();
-    };  
-  
+      return;
+    }
+
+    await copyToClipboard(replyText);
+    await openOriginalApp();
+  }; 
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -706,19 +805,15 @@ export default function ConversationScreen() {
           <Text style={styles.headerTitle}>{customerName}</Text>
           <Text style={styles.headerSub}>
             {formatAppName()}
-        </Text>
+          </Text>
         </View>
-
-       
-        
-            
 
         {notification?.priority === "high" && (
           <View style={styles.priorityPill}>
             <Text style={styles.priorityText}>HIGH VALUE</Text>
           </View>
-          )}
-        </View>
+        )}
+      </View>
 
       <ScrollView
         ref={scrollRef}
@@ -728,38 +823,35 @@ export default function ConversationScreen() {
           scrollRef.current?.scrollToEnd({ animated: true })
         }
       >
-        
-
         {timelineItems.map((item, index) => {
           const isIncoming = item.type === "incoming";
           const isDraft = item.type === "draft";
           const isSent = item.type === "sent";
-        
+
           return (
             <View
               key={item.id}
               style={[
                 isIncoming
-                ? styles.leftBubble
-                : isDraft
-                ? styles.draftBubble
-                : styles.rightBubble,
-
-              isSent && styles.sentBubble,
-            ]}
+                  ? styles.leftBubble
+                  : isDraft
+                  ? styles.draftBubble
+                  : styles.rightBubble,
+                isSent && styles.sentBubble,
+              ]}
             >
               {index === 0 && isIncoming && (
                 <Text style={styles.bubbleLabel}>{item.label}</Text>
               )}
-        
+
               {!isIncoming && (
                 <Text style={styles.bubbleLabelRight}>{item.label}</Text>
               )}
-        
+
               <Text style={isIncoming ? styles.leftText : styles.rightText}>
                 {item.text}
               </Text>
-        
+
               <Text style={isIncoming ? styles.timeText : styles.timeTextRight}>
                 {isDraft ? "Not sent yet" : formatDate(item.created_at)}
               </Text>
@@ -767,44 +859,44 @@ export default function ConversationScreen() {
           );
         })}
 
-       {routeData && (
-         <TouchableOpacity
-           onPress={() => setShowRouteDetails(!showRouteDetails)}
-           activeOpacity={0.9}
-           style={{
-             backgroundColor: routeBoxColor,
-             borderLeftWidth: 4,
-             borderLeftColor: routeAccentColor,
-             padding: 12,
-             borderRadius: 12,
-             marginBottom: 12,
-           }}
-         >
-           <Text style={{ color: "#fff", fontWeight: "700" }}>
-             {routeData.route.toUpperCase()} • {routeData.priority.toUpperCase()}
-           </Text>
-       
-           {showRouteDetails && (
-             <>
-               <Text style={{ color: "#9ca3af", marginTop: 4 }}>
-                 Route: {routeData.route}
-               </Text>
-       
-               <Text style={{ color: "#9ca3af" }}>
-                 Priority: {routeData.priority}
-               </Text>
-       
-               <Text style={{ color: "#9ca3af" }}>
-                 Can Send: {String(routeData.can_send)}
-               </Text>
-       
-               <Text style={{ color: "#9ca3af" }}>
-                 Reason: {routeData.reason}
-               </Text>
-             </>
-           )}
-         </TouchableOpacity>
-       )}
+        {routeData && (
+          <TouchableOpacity
+            onPress={() => setShowRouteDetails(!showRouteDetails)}
+            activeOpacity={0.9}
+            style={{
+              backgroundColor: routeBoxColor,
+              borderLeftWidth: 4,
+              borderLeftColor: routeAccentColor,
+              padding: 12,
+              borderRadius: 12,
+              marginBottom: 12,
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700" }}>
+              {routeData.route.toUpperCase()} • {routeData.priority.toUpperCase()}
+            </Text>
+
+            {showRouteDetails && (
+              <>
+                <Text style={{ color: "#9ca3af", marginTop: 4 }}>
+                  Route: {routeData.route}
+                </Text>
+
+                <Text style={{ color: "#9ca3af" }}>
+                  Priority: {routeData.priority}
+                </Text>
+
+                <Text style={{ color: "#9ca3af" }}>
+                  Can Send: {String(routeData.can_send)}
+                </Text>
+
+                <Text style={{ color: "#9ca3af" }}>
+                  Reason: {routeData.reason}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
         {generating && (
           <View style={styles.aiTypingRow}>
             <Ionicons name="sparkles" size={12} color="#A5B4FC" />
@@ -844,29 +936,27 @@ export default function ConversationScreen() {
           </TouchableOpacity>
         
           <TouchableOpacity
-                      style={styles.aiButton}
-                      onPress={recordingActive ? stopRecording : startRecording}
-                      disabled={voiceThinking}
-                    >
-                      {voiceThinking ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <>
-                          <Ionicons
-                            name={recordingActive ? "stop-circle" : "mic-outline"}
-                            size={18}
-                            color="#C7D2FE"
-                          />
-                          <Text style={styles.buttonText}>
-                            {recordingActive ? "Stop" : "Voice Agent"}
-                          </Text>
-                        </>
-                      )}
-                    </TouchableOpacity>          
-            
-
-         <TouchableOpacity
-           
+            style={styles.aiButton}
+            onPress={recordingActive ? stopRecording : startRecording}
+            disabled={voiceThinking}
+          >
+            {voiceThinking ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons
+                  name={recordingActive ? "stop-circle" : "mic-outline"}
+                  size={18}
+                  color="#C7D2FE"
+                />
+                <Text style={styles.buttonText}>
+                  {recordingActive ? "Stop" : "Voice Agent"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity
             style={[
               styles.sendButton,
               { backgroundColor: actionButtonColor },
@@ -875,36 +965,35 @@ export default function ConversationScreen() {
               routeData?.route === "text_sms" || routeData?.route === "website_lead_sms"
                 ? sendReply
                 : handleRouteAction
+            }
+          >
+            <Ionicons
+              name={
+                routeData?.route === "email_review"
+                  ? "mail-outline"
+                  : routeData?.route === "website_lead_sms"
+                  ? "flash-outline"
+                  : routeData?.route === "text_sms"
+                  ? "send"
+                  : "copy-outline"
               }
-         >
-           <Ionicons
-             name={
-               routeData?.route === "email_review"
-                 ? "mail-outline"
-                 : routeData?.route === "website_lead_sms"
-                 ? "flash-outline"
-                 : routeData?.route === "text_sms"
-                 ? "send"
-                 : "copy-outline"
-               }
-             size={18}
-             color={canDirectSend ? "#08111f" : "#08111f"}
-           />
-           <Text style={styles.sendButtonText}>
-             {routeData?.route === "email_review"
-               ? "Review Email"
-               : routeData?.route === "website_lead_sms"
-               ? "Send Lead Reply"
-               : routeData?.route === "text_sms"
-               ? "Send SMS"
-               : "Copy + Open"}
-           </Text>
-         </TouchableOpacity>
+              size={18}
+              color={canDirectSend ? "#08111f" : "#08111f"}
+            />
+            <Text style={styles.sendButtonText}>
+              {routeData?.route === "email_review"
+                ? "Review Email"
+                : routeData?.route === "website_lead_sms"
+                ? "Send Lead Reply"
+                : routeData?.route === "text_sms"
+                ? "Send SMS"
+                : "Copy + Open"}
+            </Text>
+          </TouchableOpacity>
         </View>
         
         <TouchableOpacity style={styles.openAppButton} onPress={openOriginalApp}>
           <Ionicons name="open-outline" size={18} color="#CBD5E1" />
-          
         </TouchableOpacity>
       </View>
     </View>
@@ -1019,7 +1108,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 18,
   },
-  rightBubble: {
+   rightBubble: {
     alignSelf: "flex-end",
     maxWidth: "82%",
     backgroundColor: "#14532D",
@@ -1090,7 +1179,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     backgroundColor: "#0b1120",
     borderWidth: 1,
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 00a280d (Stabilize cross-platform alerts and voice agent behavior)
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Linking,
   Platform,
   ScrollView,
@@ -14,6 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as Speech from "expo-speech";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics"; // New import
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -38,6 +40,13 @@ type NotificationItem = {
 };
 
 export default function AgentScreen() {
+  const showAlert = (title: string, message: string) => {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+  };
   const params = useLocalSearchParams();
   const demoMode = String(params.demo || "") === "true";
 
@@ -284,16 +293,24 @@ export default function AgentScreen() {
 
     try {
       setGenerating(true);
-      const accountEmail = localStorage.getItem("account_email") || "";
+      const accountEmail =
+        (await AsyncStorage.getItem("account_email")) || "";
       
       const subRes = await fetch(
         `${BACKEND_URL}/api/subscription/status?email=${encodeURIComponent(accountEmail)}`
       );
       
       const subData = await subRes.json();
-      
+      console.log("ACCOUNT EMAIL:", accountEmail);
+      console.log("SUB STATUS:", subData);
       if (!subData?.allowed) {
-        alert("Searlio Pro required. Start your 7-day free trial from Settings.");
+        console.log("BLOCKING AI: subscription required");
+      
+        showAlert(
+          "Searlio Pro required",
+          "Start your 7-day free trial from Settings."
+        );
+      
         return;
       }
       const res = await fetch(`${BACKEND_URL}/api/llm/generate-reply/${current.id}`, {
@@ -322,6 +339,8 @@ export default function AgentScreen() {
 
       if (text) {
         setDraft(text);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Haptic feedback
+        Alert.alert("Reply Ready", "AI drafted your response."); // Alert message
         setTimeout(() => {
           Speech.stop();
           Speech.speak(`Draft reply. ${text}`, { rate: 0.92, pitch: 1.0 });
@@ -531,7 +550,7 @@ export default function AgentScreen() {
 
           <AgentButton
             icon="sparkles"
-            label={generating ? "Drafting..." : "Reply"}
+            label={generating ? <ActivityIndicator size="small" color="#10B981" /> : "Reply"}
             onPress={generateReply}
             disabled={generating}
           />
@@ -590,7 +609,7 @@ function AgentButton({
   primary,
 }: {
   icon: any;
-  label: string;
+  label: string | JSX.Element; // Allow for ActivityIndicator
   onPress: () => void;
   disabled?: boolean;
   primary?: boolean;
@@ -754,7 +773,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     marginBottom: 14,
   },
-  
+
   urgentBannerText: {
     color: "#fff",
     fontWeight: "900",

@@ -7,12 +7,14 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import * as Speech from "expo-speech";
 import { Audio } from "expo-av";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -46,7 +48,13 @@ type VoiceState =
   | "ready_to_send";
 
 export default function VoiceScreen() {
-  
+  const showAlert = (title: string, message: string) => {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+  };
   const router = useRouter();
   const params = useLocalSearchParams();
   const contentToRead = String(params.content || "");
@@ -400,9 +408,12 @@ export default function VoiceScreen() {
     if (!currentNotification) return;
 
     setVoiceState("processing");
-
+    console.log("VOICE currentNotification:", currentNotification);
+    console.log("VOICE generate id:", currentNotification?.id);
+    console.log("VOICE BACKEND_URL:", BACKEND_URL);
     try {
-      const accountEmail = localStorage.getItem("account_email") || "";
+      const accountEmail =
+        (await AsyncStorage.getItem("account_email")) || "";
       
       const subRes = await fetch(
         `${BACKEND_URL}/api/subscription/status?email=${encodeURIComponent(accountEmail)}`
@@ -411,7 +422,10 @@ export default function VoiceScreen() {
       const subData = await subRes.json();
       
       if (!subData?.allowed) {
-        alert("Searlio Pro required. Start your 7-day free trial from Settings.");
+        showAlert(
+          "Searlio Pro required",
+          "Start your 7-day free trial from Settings."
+        );
         return;
       }
       const response = await fetch(
@@ -430,7 +444,12 @@ export default function VoiceScreen() {
         `AI generated reply: ${reply.content}. Say send to confirm, or dictate a different reply.`
       );
       setVoiceState("ready_to_send");
-    } catch (err) {
+    } catch (err: any) {
+      console.log("VOICE GENERATE ERROR:", err?.message || err);
+      Alert.alert(
+        "Voice Generate Failed",
+        String(err?.message || err)
+      );
       speak("Error generating reply.");
       setVoiceState("idle");
     }

@@ -13,15 +13,15 @@ export default function Index() {
         <Text style={styles.buttonText}>Try Live Demo</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.primary} onPress={() => router.push("/agent")}>
-        <Text style={styles.primaryText}>AI Assistant</Text>
+      <TouchableOpacity style={styles.button} onPress={() => router.push("/agent")}>
+        <Text style={styles.buttonText}>AI Assistant</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.primary}
+        style={styles.button}
         onPress={() => router.push("/pending")}
       >
-        <Text style={styles.primaryText}>
+        <Text style={styles.buttonText}>
           Open Inbox
         </Text>
       </TouchableOpacity>

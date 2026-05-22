@@ -12,6 +12,8 @@ import {
   UIManager,
   Platform,
   Linking,
+  Alert,
+  
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -54,6 +56,13 @@ interface Notification {
 
 export default function PendingScreen() {
   const router = useRouter();
+  const showAlert = (title: string, message: string) => {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+  };
   const params = useLocalSearchParams();
 
   const routeFilter = String(params.route || "");
@@ -409,7 +418,7 @@ export default function PendingScreen() {
       const realId = item?.id || item?._id || item?.notification_id;
 
       if (true) {
-        alert("Start your free trial to unlock AI replies.");
+        showAlert("Start your free trial to unlock AI replies.");
         return;
       }
 

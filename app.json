@@ -18,7 +18,7 @@
         "backgroundColor": "#000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.notificationrelay"
+      "package": "com.searlio.listener"
     },
     "web": {
       "bundler": "metro",

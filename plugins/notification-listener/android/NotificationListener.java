@@ -1,4 +1,5 @@
-package com.notificationrelay;
+package com.searlio.listener;
+
 
 import android.app.Notification;
 import android.os.Bundle;
@@ -14,6 +15,11 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 public class NotificationListener extends NotificationListenerService {
+    @Override
+    public void onListenerConnected() {
+      super.onListenerConnected();
+      Log.d("SearlioListener", "LISTENER CONNECTED");
+    }
     private static final String TAG = "SearlioListener";
 
     // Use the backend that is currently receiving leads successfully
@@ -31,6 +37,7 @@ public class NotificationListener extends NotificationListenerService {
             }
 
             Notification notification = sbn.getNotification();
+            Log.d(TAG, "Processing package: " + packageName);
             Bundle extras = notification.extras;
             
             if (extras != null) {
@@ -111,8 +118,16 @@ public class NotificationListener extends NotificationListenerService {
             }
 
             // 2. Fallback: scan title then content for a phone number
+            // 2. Fallback: scan title, content, notification key, shortcut id
             if (phone.isEmpty()) phone = extractPhoneFromText(title);
             if (phone.isEmpty()) phone = extractPhoneFromText(content);
+            
+            if (phone.isEmpty() && notification.getShortcutId() != null) {
+                phone = extractPhoneFromText(notification.getShortcutId());
+            }
+            
+            // Last resort only
+            if (phone.isEmpty()) phone = extractPhoneFromText(sbn.getKey());
 
             // Normalize: strip everything except digits and leading +
             if (!phone.isEmpty()) {
@@ -136,15 +151,15 @@ public class NotificationListener extends NotificationListenerService {
     private boolean shouldSkipPackage(String packageName) {
         if (packageName == null) return true;
 
-        if (packageName.startsWith("android")) return true;
+        //if (packageName.startsWith("android")) return true;
         if (packageName.startsWith("com.android.system")) return true;
         if (packageName.equals("com.google.android.apps.maps")) return true;
         if (packageName.equals("com.spotify.music")) return true;
         if (packageName.equals("com.sec.android.app.clockpackage")) return true;
         if (packageName.equals("com.android.vending")) return true;
-        if (packageName.equals("com.google.android.gm")) return true;
+        //if (packageName.equals("com.google.android.gm")) return true;
         if (packageName.equals("com.aol.mobile.aolapp")) return true;
-        if (packageName.equals("org.telegram.messenger")) return true;
+        //if (packageName.equals("org.telegram.messenger")) return true;
         if (packageName.equals("com.google.android.googlequicksearchbox")) return true;
         if (packageName.equals("com.snapchat.android")) return true;
         

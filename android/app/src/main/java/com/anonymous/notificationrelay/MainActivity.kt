@@ -1,6 +1,6 @@
 package com.anonymous.notificationrelay
 import expo.modules.splashscreen.SplashScreenManager
-
+import com.searlio.listener.BuildConfig
 import android.os.Build
 import android.os.Bundle
 

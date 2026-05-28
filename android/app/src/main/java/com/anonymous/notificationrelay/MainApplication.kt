@@ -1,5 +1,5 @@
 package com.anonymous.notificationrelay
-
+import com.searlio.listener.BuildConfig
 import android.app.Application
 import android.content.res.Configuration
 

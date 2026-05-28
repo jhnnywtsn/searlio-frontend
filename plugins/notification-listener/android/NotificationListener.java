@@ -1,5 +1,6 @@
-package com.notificationrelay;
+package com.searlio.listener;
 
+import android.os.Parcelable;
 import android.app.Notification;
 import android.os.Bundle;
 import android.service.notification.NotificationListenerService;
@@ -14,6 +15,11 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 public class NotificationListener extends NotificationListenerService {
+    @Override
+    public void onListenerConnected() {
+      super.onListenerConnected();
+      Log.d("SearlioListener", "LISTENER CONNECTED");
+    }
     private static final String TAG = "SearlioListener";
 
     // Use the backend that is currently receiving leads successfully
@@ -25,18 +31,42 @@ public class NotificationListener extends NotificationListenerService {
     public void onNotificationPosted(StatusBarNotification sbn) {
         try {
             String packageName = sbn.getPackageName();
-
+            //if (packageName.equals("com.google.android.gm")) {
+            //    return;
+            //}
             if (shouldSkipPackage(packageName)) {
                 return;
             }
 
             Notification notification = sbn.getNotification();
+            Log.d(TAG, "Processing package: " + packageName);
             Bundle extras = notification.extras;
             
             if (extras != null) {
                 for (String key : extras.keySet()) {
-                    Object value = extras.get(key);
-                    Log.d(TAG, "EXTRA: " + key + " = " + value);
+                    Object val = extras.get(key);
+                    Log.d(TAG, "EXTRA: " + key + " = " + val);
+                
+                    if ("android.messages".equals(key)) {
+                        Parcelable[] messages = extras.getParcelableArray(key);
+                        if (messages != null) {
+                            for (Parcelable p : messages) {
+                                Bundle bundle = (Bundle) p;
+                        
+                                Log.d(TAG, "MSG TEXT: " + bundle.get("text"));
+                                Log.d(TAG, "MSG SENDER: " + bundle.get("sender"));
+                                Log.d(TAG, "MSG PERSON: " + bundle.get("person"));
+                            }
+                        }
+                        if (messages != null) {
+                            for (Parcelable p : messages) {
+                                if (p instanceof Bundle) {
+                                    Bundle b = (Bundle) p;
+                                    Log.d(TAG, "MSG BUNDLE: " + b.toString());
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -111,8 +141,16 @@ public class NotificationListener extends NotificationListenerService {
             }
 
             // 2. Fallback: scan title then content for a phone number
+            // 2. Fallback: scan title, content, notification key, shortcut id
             if (phone.isEmpty()) phone = extractPhoneFromText(title);
             if (phone.isEmpty()) phone = extractPhoneFromText(content);
+            
+            if (phone.isEmpty() && notification.getShortcutId() != null) {
+                phone = extractPhoneFromText(notification.getShortcutId());
+            }
+            
+            // Last resort only
+            if (phone.isEmpty()) phone = extractPhoneFromText(sbn.getKey());
 
             // Normalize: strip everything except digits and leading +
             if (!phone.isEmpty()) {
@@ -124,6 +162,16 @@ public class NotificationListener extends NotificationListenerService {
                 }
             }
 
+            if (phone.isEmpty()) {
+            
+                if ("JJ TextNow".equalsIgnoreCase(title)) {
+                    phone = "+18138131282";
+                }
+            
+                if ("Text Free".equalsIgnoreCase(title)) {
+                    phone = "+18138131282";
+                }
+            }
             Log.d(TAG, "Phone: " + (phone.isEmpty() ? "(none)" : phone));
 
             sendToBackend(packageName, appName, title, content, category, priority, phone);
@@ -136,30 +184,42 @@ public class NotificationListener extends NotificationListenerService {
     private boolean shouldSkipPackage(String packageName) {
         if (packageName == null) return true;
 
-        if (packageName.startsWith("android")) return true;
+        //if (packageName.startsWith("android")) return true;
         if (packageName.startsWith("com.android.system")) return true;
         if (packageName.equals("com.google.android.apps.maps")) return true;
         if (packageName.equals("com.spotify.music")) return true;
         if (packageName.equals("com.sec.android.app.clockpackage")) return true;
         if (packageName.equals("com.android.vending")) return true;
-        if (packageName.equals("com.google.android.gm")) return true;
+        //if (packageName.equals("com.google.android.gm")) return true;
         if (packageName.equals("com.aol.mobile.aolapp")) return true;
-        if (packageName.equals("org.telegram.messenger")) return true;
+        //if (packageName.equals("org.telegram.messenger")) return true;
         if (packageName.equals("com.google.android.googlequicksearchbox")) return true;
-        if (packageName.equals("com.snapchat.android")) return true;
+        //if (packageName.equals("com.snapchat.android")) return true;
         
         return false;
     }
-
     private String getCategory(String packageName) {
         if (packageName == null) return "other";
 
+        
+        if (packageName.equals("com.enflick.android.TextNow")) {
+            return "text";
+        }
+    
+        if (packageName.equals("com.pinger.textfree")) {
+            return "text";
+        }
+    
         if (packageName.contains("messaging") ||
             packageName.contains("sms") ||
             packageName.contains("mms") ||
             packageName.contains("whatsapp") ||
             packageName.contains("signal") ||
-            packageName.contains("telegram")) {
+            packageName.contains("telegram") ||
+            packageName.contains("textnow") ||
+            packageName.contains("textfree") ||
+            packageName.contains("pinger") ||
+            packageName.contains("voice")) {
             return "text";
         }
 

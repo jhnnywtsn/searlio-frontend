@@ -1,11 +1,33 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { router } from "expo-router";
+import { useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
+import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Index() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      const completed = await AsyncStorage.getItem("onboarding_complete");
+
+      if (!completed) {
+        router.replace("/onboarding");
+      }
+    };
+
+    checkOnboarding();
+  }, []);
+
   return (
     <View style={styles.page}>
       <Text style={styles.title}>Searlio</Text>
       <Text style={styles.sub}>Choose a mode</Text>
+
       <TouchableOpacity
         style={styles.button}
         onPress={() => router.push("/agent?demo=true")}
@@ -13,7 +35,10 @@ export default function Index() {
         <Text style={styles.buttonText}>Try Live Demo</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={() => router.push("/agent")}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/agent")}
+      >
         <Text style={styles.buttonText}>AI Assistant</Text>
       </TouchableOpacity>
 
@@ -21,11 +46,9 @@ export default function Index() {
         style={styles.button}
         onPress={() => router.push("/pending")}
       >
-        <Text style={styles.buttonText}>
-          Open Inbox
-        </Text>
+        <Text style={styles.buttonText}>Open Inbox</Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={styles.button}
         onPress={() => router.push("/settings")}
@@ -35,15 +58,24 @@ export default function Index() {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={() => router.push("/voice")}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/voice")}
+      >
         <Text style={styles.buttonText}>Voice Assistant</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={() => router.push("/replies")}>
-        <Text style={styles.buttonText}> Sent Replies</Text>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/replies")}
+      >
+        <Text style={styles.buttonText}>Sent Replies</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={() => router.push("/settings")}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/settings")}
+      >
         <Text style={styles.buttonText}>Settings</Text>
       </TouchableOpacity>
     </View>
@@ -53,48 +85,39 @@ export default function Index() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#020617",
-    alignItems: "center",
+    backgroundColor: "#050816",
     justifyContent: "center",
+    alignItems: "center",
     padding: 24,
   },
+
   title: {
     color: "#fff",
-    fontSize: 38,
-    fontWeight: "900",
-    marginBottom: 6,
+    fontSize: 36,
+    fontWeight: "700",
+    marginBottom: 10,
   },
+
   sub: {
     color: "#94A3B8",
     fontSize: 16,
-    marginBottom: 28,
+    marginBottom: 30,
   },
-  primary: {
-    backgroundColor: "#22C55E",
-    paddingVertical: 17,
-    borderRadius: 18,
-    width: "100%",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  primaryText: {
-    color: "#08111f",
-    fontSize: 18,
-    fontWeight: "900",
-  },
+
   button: {
-    backgroundColor: "#111827",
-    paddingVertical: 15,
-    borderRadius: 16,
     width: "100%",
-    alignItems: "center",
-    marginBottom: 10,
+    backgroundColor: "#0F172A",
     borderWidth: 1,
-    borderColor: "#1F2937",
+    borderColor: "#1E293B",
+    paddingVertical: 16,
+    borderRadius: 14,
+    marginBottom: 14,
+    alignItems: "center",
   },
+
   buttonText: {
-    color: "#E5E7EB",
+    color: "#fff",
     fontSize: 16,
-    fontWeight: "800",
+    fontWeight: "600",
   },
 });

@@ -159,7 +159,13 @@ export default function PendingScreen() {
       app.includes("signal") ||
       app.includes("telegram") ||
       app.includes("textnow") ||
-      app.includes("googlevoice");
+      app.includes("googlevoice") ||
+      app.includes("snapchat") ||
+      app.includes("discord") ||
+      app.includes("zangi") ||
+      app.includes("botim") ||
+      app.includes("messenger") ||
+      app.includes("instagram");
 
     const isEmail =
       category === "email" ||
@@ -168,6 +174,8 @@ export default function PendingScreen() {
       app.includes("google.android.gm") ||
       app.includes("outlook") ||
       app.includes("yahoo") ||
+      app.includes("aol") ||
+      app.includes("proton") ||
       app.includes("mail");
 
     const isCall =
@@ -185,7 +193,13 @@ export default function PendingScreen() {
   };
 
   const getGroupKey = (item: Notification) =>
-    item.sender || item.title || item.app_package || item.app_name || item.id;
+    [
+      item.app_package,
+      item.sender,
+      item.title,
+    ]
+      .filter(Boolean)
+      .join("|") || item.id;
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -202,8 +216,8 @@ export default function PendingScreen() {
         if (aLead !== bLead) return aLead ? -1 : 1;
 
         return (
-          new Date(b.created_at || 0).getTime() -
-          new Date(a.created_at || 0).getTime()
+          new Date(b.updated_at || b.created_at || 0).getTime() -
+          new Date(a.updated_at || a.created_at || 0).getTime()
         );
       });
       const withRoutes = await Promise.all(
@@ -236,6 +250,14 @@ export default function PendingScreen() {
   useEffect(() => {
     loadSettings();
     fetchNotifications();
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 3000);
+  
+    return () => clearInterval(interval);
   }, [fetchNotifications]);
 
   useEffect(() => {
@@ -575,9 +597,7 @@ export default function PendingScreen() {
     if (!cleanContent) {
       return false;
     }
-    if (!isAllowedBySettings(item)) {
-      return false;
-    }
+    
     return true;
   });
 
@@ -617,8 +637,8 @@ export default function PendingScreen() {
         return groups;
       }
 
-      const existingTime = new Date(existing.created_at || 0).getTime();
-      const itemTime = new Date(item.created_at || 0).getTime();
+      const existingTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
+      const itemTime = new Date(item.updated_at || item.created_at || 0).getTime();
 
       if (itemTime > existingTime) {
         groups[key] = {
@@ -644,7 +664,10 @@ export default function PendingScreen() {
     if (aHigh !== bHigh) return aHigh ? -1 : 1;
     if (aLead !== bLead) return aLead ? -1 : 1;
     if (aText !== bText) return aText ? -1 : 1;
-    return getItemTime(b) - getItemTime(a);
+    return (
+      new Date(b.updated_at || b.created_at || 0).getTime() -
+      new Date(a.updated_at || a.created_at || 0).getTime()
+    );
   });
   
 
@@ -715,6 +738,12 @@ export default function PendingScreen() {
     if (raw.includes("googlevoice")) return "Google Voice";  
     if (raw.includes("telegram")) return "Telegram";
     if (raw.includes("whatsapp")) return "WhatsApp";
+    if (raw.includes("snapchat")) return "Snapchat";
+    if (raw.includes("discord")) return "Discord";
+    if (raw.includes("zangi")) return "Zangi";
+    if (raw.includes("botim")) return "Botim";
+    if (raw.includes("messenger")) return "Facebook";
+    if (raw.includes("instagram")) return "Instagram";
     if (raw.includes("signal") || raw.includes("thoughtcrime")) {
       return "Signal";
     }
@@ -724,6 +753,8 @@ export default function PendingScreen() {
     )
       return "Gmail";
     if (raw.includes("outlook")) return "Outlook";
+    if (raw.includes("aol")) return "AOL";
+    if (raw.includes("proton")) return "Proton";
     if (raw.includes("textnow")) return "TextNow";
     if (raw.includes("messaging")) return "Messages";
     if (raw.includes("facebook") || raw.includes("orca")) return "Messenger";
@@ -931,7 +962,7 @@ export default function PendingScreen() {
       )}
 
       <FlatList
-        data={visibleNotifications}
+        data={listData}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
@@ -983,6 +1014,15 @@ export default function PendingScreen() {
                   : isLeadsMode
                     ? "MANUAL ACTION"
                     : "NEW";
+
+            const previewText =
+              item.content ||
+              item.message ||
+              item.body ||
+              item.snippet ||
+              item.text ||
+              item.title ||
+              "";
           return (
             <Swipeable
               renderRightActions={() => (
@@ -1065,18 +1105,19 @@ export default function PendingScreen() {
                         {badgeLabel}
                       </Text>
                     </View>
-
-                    {(item as any).extra_count > 1 && (
-                      <View style={styles.countBadge}>
-                        <Text style={styles.countBadgeText}>
-                          {(item as any).extra_count}
-                        </Text>
-                      </View>
-                    )}
+                    {/* thread count hidden in pending compact mode */}
+                    
                   </View>
 
-                  <Text style={styles.itemMessage} numberOfLines={2}>
-                    {(item.content || "")
+                  <Text
+                    style={styles.itemMessage}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                  >
+                    {(
+                      previewText ||
+                      ""
+                    )
                       .replace(/\n/g, " ")
                       .replace(/\s+/g, " ")
                       .trim()}
@@ -1084,11 +1125,7 @@ export default function PendingScreen() {
 
                   
 
-                  {(item as any).extra_count > 1 && (
-                    <Text style={styles.threadCount}>
-                      {(item as any).extra_count} message thread
-                    </Text>
-                  )}
+                  
 
                   <Text style={styles.itemDate}>
                     {formatDateTime(
@@ -1225,25 +1262,91 @@ export default function PendingScreen() {
           );
         }}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={64} color="#10B981" />
-            <Text style={styles.emptyText}>All caught up!</Text>
-            <Text style={styles.emptySubtext}>
-              {filter === "leads"
-                ? settings.highPriorityOnly
-                  ? "No high-value leads right now"
-                  : "No website leads"
-                : "No active conversations"}
+          <View
+            style={{
+              paddingHorizontal: 28,
+              paddingTop: 90,
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                width: 88,
+                height: 88,
+                borderRadius: 28,
+                backgroundColor: "rgba(255,255,255,0.05)",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 28,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.08)",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 38,
+                }}
+              >
+                ✨
+              </Text>
+            </View>
+        
+            <Text
+              style={{
+                color: "white",
+                fontSize: 26,
+                fontWeight: "800",
+                marginBottom: 12,
+              }}
+            >
+              Inbox Clear
             </Text>
+        
+            <Text
+              style={{
+                color: "#94A3B8",
+                fontSize: 16,
+                textAlign: "center",
+                lineHeight: 26,
+                maxWidth: 320,
+              }}
+            >
+              Searlio will begin organizing your notifications automatically as they arrive.
+            </Text>
+        
+            <View
+              style={{
+                marginTop: 30,
+                backgroundColor: "rgba(255,255,255,0.04)",
+                borderRadius: 18,
+                paddingVertical: 14,
+                paddingHorizontal: 18,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.06)",
+              }}
+            >
+              <Text
+                style={{
+                  color: "#64748B",
+                  fontSize: 14,
+                  textAlign: "center",
+                }}
+              >
+                If notifications are not appearing,
+                verify notification access is enabled.
+              </Text>
+            </View>
           </View>
-        }
-      />
-    </SafeAreaView>
-  </GestureHandlerRootView>
-  );
+                }
+    />
+  </SafeAreaView>
+</GestureHandlerRootView>
+);
 }
 
-const styles = StyleSheet.create({
+
+     
+  const styles = StyleSheet.create({   
   container: { flex: 1, backgroundColor: "#0F0F14" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { color: "#94A3B8", marginTop: 12, fontSize: 14 },
@@ -1461,7 +1564,7 @@ const styles = StyleSheet.create({
   itemTitle: { color: "#fff", fontWeight: "800", fontSize: 15, flex: 1, marginLeft: -2 },
   itemMessage: {
     color: "#CBD5E1",
-    fontSize: 13,
+    fontSize: 15,
     marginTop: 4,
     lineHeight: 18,
   },
